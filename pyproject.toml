@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.urls]
-Source = "https://github.com/langchain-ai/langgraph/tree/main/libs/checkpoint-greenplum"
+Source = "https://github.com/StarJourneyMingsing/langgraph-checkpoint-greenplum"
 
 [dependency-groups]
 test = [
@@ -40,10 +40,6 @@ dev = [
 
 [tool.uv]
 default-groups = ['dev']
-
-[tool.uv.sources]
-langgraph-checkpoint-postgres = { path = "../checkpoint-postgres", editable = true }
-langgraph-checkpoint = { path = "../checkpoint", editable = true }
 
 [tool.hatch.build.targets.wheel]
 include = ["langgraph"]
