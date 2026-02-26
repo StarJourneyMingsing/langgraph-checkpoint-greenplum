@@ -47,6 +47,32 @@ with GreenplumSaver.from_conn_string(DB_URI) as checkpointer:
 - Greenplum 6+ (or PostgreSQL 9.3+) for the CTE query (uses `CROSS JOIN LATERAL`).
 - `langgraph-checkpoint-postgres` (and thus `psycopg` and `langgraph-checkpoint`) are installed automatically.
 
+## Release to PyPI (GitHub Actions)
+
+This repository includes a publish workflow at `.github/workflows/publish-pypi.yml`.
+
+### One-time setup
+
+1. In PyPI, configure a Trusted Publisher for this project:
+   - Owner: `StarJourneyMingsing`
+   - Repository: `langgraph-checkpoint-greenplum`
+   - Workflow name: `publish-pypi.yml`
+   - Environment name: `pypi`
+2. In GitHub, create environment `pypi` in repository settings (optional protection rules can be added).
+
+### Publish a new version
+
+1. Update `version` in `pyproject.toml`.
+2. Commit and push changes.
+3. Create and push a version tag:
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+The workflow will verify that tag version matches `pyproject.toml`, build distributions, and publish to PyPI.
+
 ## License
 
 MIT
