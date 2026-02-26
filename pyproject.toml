@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "langgraph-checkpoint-greenplum"
+version = "0.1.0"
+description = "Greenplum/MPP-optimized checkpoint saver for LangGraph (uses CTE-based list queries)."
+authors = []
+requires-python = ">=3.10"
+readme = "README.md"
+license = "MIT"
+license-files = ['LICENSE']
+dependencies = [
+  "langgraph-checkpoint-postgres>=3.0.4,<5.0.0",
+]
+
+[project.urls]
+Source = "https://github.com/langchain-ai/langgraph/tree/main/libs/checkpoint-greenplum"
+
+[dependency-groups]
+test = [
+  "pytest",
+  "anyio",
+  "pytest-asyncio",
+  "pytest-mock",
+  "psycopg[binary]",
+  "langgraph-checkpoint",
+  "pytest-watcher",
+]
+lint = [
+  "ruff",
+  "codespell",
+  "mypy",
+]
+dev = [
+  {include-group = "test"},
+  {include-group = "lint"},
+]
+
+[tool.uv]
+default-groups = ['dev']
+
+[tool.uv.sources]
+langgraph-checkpoint-postgres = { path = "../checkpoint-postgres", editable = true }
+langgraph-checkpoint = { path = "../checkpoint", editable = true }
+
+[tool.hatch.build.targets.wheel]
+include = ["langgraph"]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers --strict-config --durations=5 -vv"
+asyncio_mode = "auto"
+
+[tool.ruff]
+lint.select = [
+  "E",
+  "F",
+  "UP",
+  "B",
+  "I",
+]
+lint.ignore = ["E501", "B008"]
+target-version = "py310"
+
+[tool.mypy]
+disallow_untyped_defs = "True"
+explicit_package_bases = "True"
+warn_no_return = "False"
+warn_unused_ignores = "True"
+warn_redundant_casts = "True"
+allow_redefinition = "True"
+disable_error_code = "typeddict-item, return-value"
+
+[tool.pytest-watcher]
+now = true
+delay = 0.1
+runner_args = ["--ff", "-x", "-v", "--tb", "short"]
+patterns = ["*.py"]
