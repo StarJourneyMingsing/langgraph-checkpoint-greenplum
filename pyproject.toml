@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "langgraph-checkpoint-greenplum"
-version = "0.1.0"
+version = "0.1.2"
 description = "Greenplum/MPP-optimized checkpoint saver for LangGraph (uses CTE-based list queries)."
 authors = []
 requires-python = ">=3.10"
