@@ -26,6 +26,8 @@ Usage::
 
 from __future__ import annotations
 
+from collections import defaultdict
+from collections.abc import AsyncIterator, Iterator
 from typing import Any
 
 from langchain_core.runnables import RunnableConfig
@@ -229,6 +231,49 @@ class AsyncGreenplumSaver(_GreenplumListMixin, AsyncPostgresSaver):
     Motion in Greenplum's MPP execution engine.
     """
 
+    async def alist(
+        self,
+        config: RunnableConfig | None,
+        *,
+        filter: dict[str, Any] | None = None,
+        before: RunnableConfig | None = None,
+        limit: int | None = None,
+    ) -> AsyncIterator[CheckpointTuple]:
+        """List checkpoints using a CTE+JOIN query (Greenplum-optimized)."""
+        where, args = self._search_where(config, filter, before)
+        query, params = self._build_list_query(where, args, limit)
+        async with self._cursor() as cur:
+            await cur.execute(query, params, binary=True)
+            values = await cur.fetchall()
+            if not values:
+                return
+            if to_migrate := [
+                v
+                for v in values
+                if v["checkpoint"]["v"] < 4 and v["parent_checkpoint_id"]
+            ]:
+                await cur.execute(
+                    self.SELECT_PENDING_SENDS_SQL,
+                    (
+                        values[0]["thread_id"],
+                        [v["parent_checkpoint_id"] for v in to_migrate],
+                    ),
+                )
+                grouped_by_parent = defaultdict(list)
+                for value in to_migrate:
+                    grouped_by_parent[value["parent_checkpoint_id"]].append(value)
+                async for sends in cur:
+                    for value in grouped_by_parent[sends["checkpoint_id"]]:
+                        if value["channel_values"] is None:
+                            value["channel_values"] = []
+                        self._migrate_pending_sends(
+                            sends["sends"],
+                            value["checkpoint"],
+                            value["channel_values"],
+                        )
+            for value in values:
+                yield await self._load_checkpoint_tuple(value)
+
     async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         thread_id = config["configurable"]["thread_id"]
         checkpoint_id = get_checkpoint_id(config)
@@ -272,6 +317,49 @@ class GreenplumSaver(_GreenplumListMixin, PostgresSaver):
     `get_tuple()` instead of correlated subqueries, avoiding Broadcast
     Motion in Greenplum's MPP execution engine.
     """
+
+    def list(
+        self,
+        config: RunnableConfig | None,
+        *,
+        filter: dict[str, Any] | None = None,
+        before: RunnableConfig | None = None,
+        limit: int | None = None,
+    ) -> Iterator[CheckpointTuple]:
+        """List checkpoints using a CTE+JOIN query (Greenplum-optimized)."""
+        where, args = self._search_where(config, filter, before)
+        query, params = self._build_list_query(where, args, limit)
+        with self._cursor() as cur:
+            cur.execute(query, params)
+            values = cur.fetchall()
+            if not values:
+                return
+            if to_migrate := [
+                v
+                for v in values
+                if v["checkpoint"]["v"] < 4 and v["parent_checkpoint_id"]
+            ]:
+                cur.execute(
+                    self.SELECT_PENDING_SENDS_SQL,
+                    (
+                        values[0]["thread_id"],
+                        [v["parent_checkpoint_id"] for v in to_migrate],
+                    ),
+                )
+                grouped_by_parent = defaultdict(list)
+                for value in to_migrate:
+                    grouped_by_parent[value["parent_checkpoint_id"]].append(value)
+                for sends in cur:
+                    for value in grouped_by_parent[sends["checkpoint_id"]]:
+                        if value["channel_values"] is None:
+                            value["channel_values"] = []
+                        self._migrate_pending_sends(
+                            sends["sends"],
+                            value["checkpoint"],
+                            value["channel_values"],
+                        )
+            for value in values:
+                yield self._load_checkpoint_tuple(value)
 
     def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         thread_id = config["configurable"]["thread_id"]
